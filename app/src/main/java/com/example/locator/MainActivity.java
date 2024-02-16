@@ -32,13 +32,11 @@ import org.w3c.dom.Text;
 public class MainActivity extends AppCompatActivity {
 
     FirebaseAuth auth;
-    Button btn_logout,btn_select_img,btn_upload_img;
+    Button btn_logout,btn_profile;
     TextView textViewEmail,textViewName;
     FirebaseUser user;
-    Uri imageUri;
-    ImageView profile_img;
-    StorageReference storageRef ;
-    ProgressDialog progressDialog;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -46,11 +44,10 @@ public class MainActivity extends AppCompatActivity {
 
         auth=FirebaseAuth.getInstance();
         btn_logout=findViewById(R.id.logout);
-        btn_select_img=findViewById(R.id.select_img);
-        btn_upload_img=findViewById(R.id.upload_img);
+        btn_profile=findViewById(R.id.Profile);
         textViewEmail=findViewById(R.id.user_email);
         textViewName=findViewById(R.id.user_name);
-        profile_img=findViewById(R.id.profileImageView);
+
         user=auth.getCurrentUser();
 
 
@@ -73,66 +70,16 @@ public class MainActivity extends AppCompatActivity {
                 finish();
             }
         });
-
-        btn_select_img.setOnClickListener(new View.OnClickListener() {
+        btn_profile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                selectImage();
+                Intent intent=new Intent(MainActivity.this, ProfileUpdate.class);
+                intent.putExtra("User_uid", user.getUid());
+                intent.putExtra("User_email", user.getEmail());
+                startActivity(intent);
             }
         });
 
-        btn_upload_img.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                uploadImage();
-            }
-        });
-
-
-    }
-    private void selectImage(){
-        Intent intent = new Intent();
-        intent.setType("image/*"); // Specify image MIME type
-        intent.setAction(Intent.ACTION_GET_CONTENT);
-        startActivityForResult(Intent.createChooser(intent, "Select Picture"), 100);
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode,resultCode,data);
-
-        if(requestCode==100 && data!=null && data.getData()!=null){
-            imageUri=data.getData();
-            profile_img.setImageURI(imageUri);
-        }
-    }
-    private void uploadImage(){
-        progressDialog=new ProgressDialog(this);
-        progressDialog.setTitle("uploading file...");
-        progressDialog.show();
-
-        String filename=user.getEmail()+"-profile_pic";
-        storageRef= FirebaseStorage.getInstance().getReference("images/"+filename);
-        storageRef.putFile(imageUri)
-                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                    @Override
-                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                        profile_img.setImageURI(null);
-                        if(progressDialog.isShowing()){
-                            progressDialog.dismiss();
-                        }
-                        Toast.makeText(MainActivity.this,"Successfully uploaded",Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Toast.makeText(MainActivity.this,"Failed to upload",Toast.LENGTH_SHORT).show();
-                        if(progressDialog.isShowing()){
-                            progressDialog.dismiss();
-                        }
-                    }
-                });
-
-    }
 }
