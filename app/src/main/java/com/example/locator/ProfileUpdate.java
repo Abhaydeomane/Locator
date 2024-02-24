@@ -30,6 +30,9 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class ProfileUpdate extends AppCompatActivity {
 
 
@@ -63,8 +66,8 @@ public class ProfileUpdate extends AppCompatActivity {
         editTextMobile=findViewById(R.id.Mobile);
 
         //Storing old values of user in class users
-        Users users = new Users();
-        users.setEmail(user_email);
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("email", user_email);
 
         //data from realtime database
         db = FirebaseDatabase.getInstance();
@@ -80,18 +83,16 @@ public class ProfileUpdate extends AppCompatActivity {
                     String firstName_old = dataSnapshot.child("firstName").getValue(String.class);
                     String lastName_old = dataSnapshot.child("lastName").getValue(String.class);
                     String mobile_old = dataSnapshot.child("mobile").getValue(String.class);
-                    String imageurl_old=dataSnapshot.child("imageurl").getValue(String.class);
 
-                    // Set the users object
-                    users.setFirstName(firstName_old);
-                    users.setLastName(lastName_old);
-                    users.setMobile(mobile_old);
-                    users.setImageurl(imageurl_old);
+                    // Set the updates object
+                    updates.put("firstName",firstName_old);
+                    updates.put("lastName",lastName_old);
+                    updates.put("mobile",mobile_old);
 
                     // Set the EditText fields
-                    editTextFirstname.setText(users.getFirstName());
-                    editTextLastname.setText(users.getLastName());
-                    editTextMobile.setText(users.getMobile());
+                    editTextFirstname.setText(firstName_old);
+                    editTextLastname.setText(lastName_old);
+                    editTextMobile.setText(mobile_old);
 
                 }
             }
@@ -141,13 +142,14 @@ public class ProfileUpdate extends AppCompatActivity {
                     lastname=editTextLastname.getText().toString();
                     mobile=editTextMobile.getText().toString();
 
-                    users.setFirstName(firstname);
-                    users.setLastName(lastname);
-                    users.setMobile(mobile);
+                    updates.put("firstName",firstname);
+                    updates.put("lastName",lastname);
+                    updates.put("mobile",mobile);
+
 
                     db = FirebaseDatabase.getInstance();
                     reference = db.getReference("Users");
-                    reference.child(user_uid).setValue(users)
+                    reference.child(user_uid).updateChildren(updates)
                             .addOnCompleteListener(new OnCompleteListener<Void>() {
                                 @Override
                                 public void onComplete(@NonNull Task<Void> task) {

@@ -3,6 +3,7 @@ package com.example.locator;
 public class Users {
     String firstName,lastName,mobile,email,imageurl;
 
+
     public Users(){
 
     }
