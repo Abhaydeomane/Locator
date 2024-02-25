@@ -1,5 +1,7 @@
 package com.example.locator;
 
+import static java.security.AccessController.getContext;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -13,14 +15,16 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Looper;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.Manifest;
-
-
+import androidx.core.util.Pair;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationServices;
@@ -37,8 +41,11 @@ import com.google.firebase.Firebase;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.UserProfileChangeRequest;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
@@ -46,6 +53,7 @@ import com.squareup.picasso.Picasso;
 
 import org.w3c.dom.Text;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -57,10 +65,21 @@ public class MainActivity extends AppCompatActivity {
     TextView textViewEmail,textViewName,latitudeTextView, longitTextView;
     int PERMISSION_ID = 44;;
     FirebaseUser user;
-    FirebaseDatabase db;
+    FirebaseDatabase db=FirebaseDatabase.getInstance();
     DatabaseReference reference;
 
+    HashMap<String, Pair<Double, Double>> usersMap = new HashMap<>();
+
     double latitude,longitude;
+    private ListView mListView;
+    ListView l;
+    String tutorials[]
+            = { "Algorithms", "Data Structures",
+            "Languages", "Interview Corner",
+            "GATE", "ISRO CS",
+            "UGC NET CS", "CS Subjects",
+            "Web Technologies" };
+
 
     // initializing
     // FusedLocationProviderClient
@@ -80,6 +99,8 @@ public class MainActivity extends AppCompatActivity {
         latitudeTextView = findViewById(R.id.latTextView);
         longitTextView = findViewById(R.id.lonTextView);
         user=auth.getCurrentUser();
+        mListView = findViewById(R.id.list_view);
+        l = findViewById(R.id.list_view);
 
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -90,12 +111,14 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
             finish();
         }
-        else{
-            textViewEmail.setText(user.getEmail());
-            textViewName.setText(user.getDisplayName());
-            // method to get the location
-            getLastLocation();
-        }
+
+        textViewEmail.setText(user.getEmail());
+        textViewName.setText(user.getDisplayName());
+        // method to get the location
+        getLastLocation();
+
+        getonlineuser();
+
 
         btn_logout.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -117,6 +140,65 @@ public class MainActivity extends AppCompatActivity {
         });
 
     }
+
+    @Override
+    protected void onDestroy() {
+        // Get current user's UID
+        // Remove the user from onlineusers node to indicate offline status
+        reference = db.getReference("Onlineusers");
+        reference.child(user.getUid()).removeValue();
+        super.onDestroy();
+    }
+
+    private void getonlineuser(){
+        reference = db.getReference("Onlineusers");
+        reference.get().addOnCompleteListener(new OnCompleteListener<DataSnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<DataSnapshot> task) {
+                if (!task.isSuccessful()) {
+                    Log.e("firebase", "Error getting data", task.getException());
+                }
+                else {
+                    DataSnapshot dataSnapshot = task.getResult();
+                    if (dataSnapshot != null) {
+                        for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
+                            String userId = userSnapshot.getKey();
+                            if (userId != null) {
+                                Double latitude_temp = userSnapshot.child("latitude").getValue(Double.class);
+                                Double longitude_temp = userSnapshot.child("longitude").getValue(Double.class);
+
+                                if (latitude_temp != null && longitude_temp != null) {
+                                    usersMap.put(userId, new Pair<>(latitude, longitude));
+                                    //Toast.makeText(MainActivity.this, "Data fetched from DB", Toast.LENGTH_SHORT).show();
+                                    //Log.d(TAG, "User " + userId + ": Latitude = " + latitude + ", Longitude = " + longitude);
+                                    // You can perform further operations with latitude and longitude here
+
+                                }
+                            }
+                        }
+                        if(usersMap.size()>0){
+                            Toast.makeText(MainActivity.this, "Fetched onlineusers successfully", Toast.LENGTH_SHORT).show();
+
+                            ArrayList<String> usersList = new ArrayList<>();
+
+                            for (String userId : usersMap.keySet()) {
+                                Pair<Double, Double> userLocation = usersMap.get(userId);
+                                String userInfo = "UserID: " + userId;
+//                                String userInfo = "UserID: " + userId + ", Latitude: " + userLocation.first + ", Longitude: " + userLocation.second;
+                                usersList.add(userInfo);
+                            }
+
+                            ArrayAdapter<String> arr = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_spinner_dropdown_item, usersList);
+                            l.setAdapter(arr);
+
+
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     @SuppressLint("MissingPermission")
     private void getLastLocation() {
         // check if permissions are given
@@ -125,10 +207,8 @@ public class MainActivity extends AppCompatActivity {
             // check if location is enabled
             if (isLocationEnabled()) {
 
-                // getting last
-                // location from
-                // FusedLocationClient
-                // object
+                // getting last// location from
+                // FusedLocationClien// object
                 mFusedLocationClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<Location>() {
                     @Override
                     public void onComplete(@NonNull Task<Location> task) {
@@ -145,13 +225,12 @@ public class MainActivity extends AppCompatActivity {
                             Map<String, Object> updates = new HashMap<>();
                             updates.put("latitude", latitude);
                             updates.put("longitude", longitude);
-                            db = FirebaseDatabase.getInstance();
-                            reference = db.getReference("Users");
+                            reference=db.getReference("Onlineusers");
                             reference.child(user.getUid()).updateChildren(updates)
                                     .addOnCompleteListener(new OnCompleteListener<Void>() {
                                         @Override
                                         public void onComplete(@NonNull Task<Void> task) {
-                                            Toast.makeText(MainActivity.this, "Successfully Update in DB", Toast.LENGTH_SHORT).show();
+                                            //Toast.makeText(MainActivity.this, "Successfully Update in DB", Toast.LENGTH_SHORT).show();
                                         }
                                     })
                                     .addOnFailureListener(new OnFailureListener() {
@@ -170,8 +249,7 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         } else {
-            // if permissions aren't available,
-            // request for permissions
+            // if permissions aren't available,// request for permissions
             requestPermissions();
         }
     }
@@ -179,16 +257,14 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("MissingPermission")
     private void requestNewLocationData() {
 
-        // Initializing LocationRequest
-        // object with appropriate methods
+        // Initializing LocationRequest// object with appropriate methods
         LocationRequest mLocationRequest = new LocationRequest();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         mLocationRequest.setInterval(5000);//interval for location updates in milliseconds. here 5 sec
         mLocationRequest.setFastestInterval(0);
         mLocationRequest.setNumUpdates(1);//here number of times the update location will works . increase the count in future
 
-        // setting LocationRequest
-        // on FusedLocationClient
+        // setting LocationRequest// on FusedLocationClient
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
     }
@@ -207,8 +283,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean checkPermissions() {
         return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
 
-        // If we want background location
-        // on Android 10.0 and higher,
+        // If we want background location// on Android 10.0 and higher,
         // use:
         // ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
     }

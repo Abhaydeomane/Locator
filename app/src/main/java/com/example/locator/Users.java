@@ -1,7 +1,7 @@
 package com.example.locator;
 
 public class Users {
-    String firstName,lastName,mobile,email,imageurl;
+    String firstName,lastName,mobile,email;
 
 
     public Users(){
@@ -19,14 +19,6 @@ public class Users {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getImageurl() {
-        return imageurl;
-    }
-
-    public void setImageurl(String imageurl) {
-        this.imageurl = imageurl;
     }
 
     public String getFirstName() {
